@@ -11,6 +11,12 @@ interface FormAddImageProps {
   closeModal: () => void;
 }
 
+interface FormAddImageData {
+  image: string;
+  title: string;
+  description: string;
+}
+
 export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
   const [imageUrl, setImageUrl] = useState('');
   const [localImageUrl, setLocalImageUrl] = useState('');
@@ -18,7 +24,10 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
 
   const formValidations = {
     image: {
-      // TODO REQUIRED, LESS THAN 10 MB AND ACCEPTED FORMATS VALIDATIONS
+      required: true,
+      validate: {
+
+      }
     },
     title: {
       // TODO REQUIRED, MIN AND MAX LENGTH VALIDATIONS
@@ -30,31 +39,53 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
 
   const queryClient = useQueryClient();
   const mutation = useMutation(
-    // TODO MUTATION API POST REQUEST,
+    async ({ title, description }: FormAddImageData) => {
+      const { data } = await api.post('/images', {
+        title,
+        description,
+        image: imageUrl,
+      });
+      return data;
+    },
     {
-      // TODO ONSUCCESS MUTATION
+      onSuccess: () => {
+        queryClient.invalidateQueries('images');
+      },
     }
   );
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState,
-    setError,
-    trigger,
-  } = useForm();
+  const { register, handleSubmit, reset, formState, setError, trigger } =
+    useForm();
   const { errors } = formState;
 
-  const onSubmit = async (data: Record<string, unknown>): Promise<void> => {
+  const onSubmit = async (data: FormAddImageData): Promise<void> => {
     try {
-      // TODO SHOW ERROR TOAST IF IMAGE URL DOES NOT EXISTS
-      // TODO EXECUTE ASYNC MUTATION
-      // TODO SHOW SUCCESS TOAST
+      if (!data.image || !imageUrl) {
+        toast({
+          title: 'Image is required',
+          description: 'Please select an image',
+          status: 'error',
+        });
+        return;
+      }
+      await mutation.mutateAsync(data);
+
+      toast({
+        title: 'Image added',
+        description: 'Image added successfully',
+        status: 'success',
+      });
     } catch {
-      // TODO SHOW ERROR TOAST IF SUBMIT FAILED
+      toast({
+        title: 'Error',
+        description: 'Something went wrong',
+        status: 'error',
+      });
     } finally {
-      // TODO CLEAN FORM, STATES AND CLOSE MODAL
+      reset();
+      setImageUrl('');
+      setLocalImageUrl('');
+      closeModal();
     }
   };
 
@@ -62,25 +93,28 @@ export function FormAddImage({ closeModal }: FormAddImageProps): JSX.Element {
     <Box as="form" width="100%" onSubmit={handleSubmit(onSubmit)}>
       <Stack spacing={4}>
         <FileInput
+          {...register('image', { validate: formValidations.image })}
+          error={errors.image}
           setImageUrl={setImageUrl}
           localImageUrl={localImageUrl}
           setLocalImageUrl={setLocalImageUrl}
           setError={setError}
           trigger={trigger}
-          // TODO SEND IMAGE ERRORS
-          // TODO REGISTER IMAGE INPUT WITH VALIDATIONS
+          name="image"
         />
 
         <TextInput
+          {...register('title', { validate: formValidations.title })}
+          error={errors.title}
           placeholder="Título da imagem..."
-          // TODO SEND TITLE ERRORS
-          // TODO REGISTER TITLE INPUT WITH VALIDATIONS
         />
 
         <TextInput
+          {...register('description', {
+            validate: formValidations.description,
+          })}
+          error={errors.description}
           placeholder="Descrição da imagem..."
-          // TODO SEND DESCRIPTION ERRORS
-          // TODO REGISTER DESCRIPTION INPUT WITH VALIDATIONS
         />
       </Stack>
 
